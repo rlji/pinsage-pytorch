@@ -22,7 +22,7 @@ def train_test_split_by_time(df, timestamp, user):
             df.iloc[-2, -3] = False
             df.iloc[-2, -2] = True
         return df
-    df = df.groupby(user, group_keys=False).apply(train_test_split).compute(scheduler='processes').sort_index()
+    df = df.groupby(user, group_keys=False).apply(train_test_split, meta=df).compute(scheduler='processes').sort_index()
     print(df[df[user] == df[user].unique()[0]].sort_values(timestamp))
     return df['train_mask'].to_numpy().nonzero()[0], \
            df['val_mask'].to_numpy().nonzero()[0], \

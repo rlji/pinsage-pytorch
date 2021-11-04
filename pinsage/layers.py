@@ -37,7 +37,7 @@ def _init_input_modules(g, ntype, textset, hidden_dims):
 
     if textset is not None:
         for column, field in textset.fields.items():
-            if field.vocab.vectors:
+            if field.vocab.vectors is not None:
                 module_dict[column] = BagOfWordsPretrained(field, hidden_dims)
             else:
                 module_dict[column] = BagOfWords(field, hidden_dims)
@@ -52,12 +52,13 @@ class BagOfWordsPretrained(nn.Module):
         self.emb = nn.Embedding(
             len(field.vocab.itos), input_dims,
             padding_idx=field.vocab.stoi[field.pad_token])
-        self.emb.weight[:] = field.vocab.vectors
+        # self.emb.weight[:] = field.vocab.vectors
+        self.emb.from_pretrained(field.vocab.vectors)
         self.proj = nn.Linear(input_dims, hidden_dims)
         nn.init.xavier_uniform_(self.proj.weight)
         nn.init.constant_(self.proj.bias, 0)
 
-        disable_grad(self.emb)
+        # disable_grad(self.emb)
 
     def forward(self, x, length):
         """
@@ -167,16 +168,8 @@ class SAGENet(nn.Module):
         return h
 
 class ItemToItemScorer(nn.Module):
-    def __init__(self, full_graph, ntype):
+    def __init__(self):
         super().__init__()
-
-        n_nodes = full_graph.number_of_nodes(ntype)
-        self.bias = nn.Parameter(torch.zeros(n_nodes))
-
-    def _add_bias(self, edges):
-        bias_src = self.bias[edges.src[dgl.NID]]
-        bias_dst = self.bias[edges.dst[dgl.NID]]
-        return {'s': edges.data['s'] + bias_src + bias_dst}
 
     def forward(self, item_item_graph, h):
         """
@@ -186,6 +179,5 @@ class ItemToItemScorer(nn.Module):
         with item_item_graph.local_scope():
             item_item_graph.ndata['h'] = h
             item_item_graph.apply_edges(fn.u_dot_v('h', 'h', 's'))
-            item_item_graph.apply_edges(self._add_bias)
             pair_score = item_item_graph.edata['s']
         return pair_score

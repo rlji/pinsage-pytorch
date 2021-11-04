@@ -11,7 +11,7 @@ class PinSAGEModel(nn.Module):
 
         self.proj = layers.LinearProjector(full_graph, ntype, textsets, hidden_dims)
         self.sage = layers.SAGENet(hidden_dims, n_layers)
-        self.scorer = layers.ItemToItemScorer(full_graph, ntype)
+        self.scorer = layers.ItemToItemScorer()
 
     def forward(self, pos_graph, neg_graph, blocks, item_emb):
         h_item = self.get_repr(blocks, item_emb)
@@ -34,4 +34,8 @@ class PinSAGEModel(nn.Module):
         torch.save(self.state_dict(), save_pth)
 
     def load_network(self, load_pth):
-        self.load_state_dict(torch.load(load_pth))
+        state_dict = torch.load(load_pth)
+        # remove parameter keys that are not consistent for training and gen repr
+        state_dict.pop('proj.inputs.title.emb.weight', None)
+        state_dict.pop('scorer.bias', None)
+        self.load_state_dict(state_dict, strict=False)
